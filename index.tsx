@@ -127,10 +127,44 @@ const UserContext: NavContextMenuPatchCallback = (children, { user }: UserContex
 };
 
 const lastStatuses = new Map<string, string>();
+const lastGames = new Map<string, string | null>();
+
+function getGameActivityLabel(activities: PresenceUpdate["activities"]) {
+    const gameActivity = activities.find(activity => activity.type === 0);
+    if (!gameActivity) return null;
+
+    return gameActivity.state ?? gameActivity.details ?? gameActivity.name ?? null;
+}
+
+function triggerGameNotification(userId: string, game: string | null, previousGame: string | null) {
+    const user = UserStore.getUser(userId);
+    const name = user.globalName || user.username;
+
+    if (game) {
+        showNotification({
+            title: `${name} changed game activity`,
+            body: previousGame ? `They are now playing ${game}` : `They started playing ${game}`,
+            noPersist: !settings.store.persistNotifications,
+            richBody: getRichBody(user, `${name} is now playing ${game}`),
+            icon: user.getAvatarURL(void 0, 80, true),
+            color: "#5865f2",
+        });
+        return;
+    }
+
+    showNotification({
+        title: `${name} changed game activity`,
+        body: previousGame ? `They stopped playing ${previousGame}` : "They stopped playing a game",
+        noPersist: !settings.store.persistNotifications,
+        richBody: getRichBody(user, `${name} stopped playing ${previousGame ?? "a game"}`),
+        icon: user.getAvatarURL(void 0, 80, true),
+        color: "#747f8d",
+    });
+}
 
 export default definePlugin({
     name: "NotifyUserChanges",
-    description: "Adds a notify option in the user context menu to get notified when a user changes voice channels or online status",
+    description: "Adds a notify option in the user context menu to get notified when a user changes voice channels, online status, or game activity",
     authors: [Devs.D3SOX],
 
     settings,
@@ -165,7 +199,7 @@ export default definePlugin({
             if (!settings.store.notifyStatus || !settings.store.userIds) {
                 return;
             }
-            for (const { user: { id: userId, username }, status, clientStatus } of updates) {
+            for (const { user: { id: userId, username }, status, clientStatus, activities } of updates) {
                 const isFollowed = getUserIdList().includes(userId);
                 if (!isFollowed) {
                     continue;
@@ -190,6 +224,13 @@ export default definePlugin({
                     });
                 }
                 lastStatuses.set(userId, status);
+
+                const game = getGameActivityLabel(activities);
+                const previousGame = lastGames.get(userId) ?? null;
+                if (lastGames.has(userId) && previousGame !== game) {
+                    triggerGameNotification(userId, game, previousGame);
+                }
+                lastGames.set(userId, game);
             }
         }
     },

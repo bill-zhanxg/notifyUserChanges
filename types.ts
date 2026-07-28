@@ -25,6 +25,7 @@ export interface PresenceUpdate {
         id: string;
         name: string;
         details?: string;
+        state?: string;
         type: number;
     }>;
 }
