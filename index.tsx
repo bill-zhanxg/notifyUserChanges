@@ -5,234 +5,29 @@
  */
 
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
-import { showNotification } from "@api/Notifications";
-import { definePluginSettings } from "@api/Settings";
 import { Devs } from "@utils/constants";
-import definePlugin, { OptionType } from "@utils/types";
-import type { Channel, User } from "@vencord/discord-types";
-import { Menu, React, SelectedChannelStore, UserStore } from "@webpack/common";
+import definePlugin from "@utils/types";
 
-import { NotificationsOffIcon } from "./components/NotificationsOffIcon";
-import { NotificationsOnIcon } from "./components/NotificationsOnIcon";
-import { PlatformIndicator } from "./platformIndicators";
-import { PresenceUpdate, VoiceState } from "./types";
-
-export const settings = definePluginSettings({
-    notifyStatus: {
-        type: OptionType.BOOLEAN,
-        description: "Notify on status changes",
-        restartNeeded: false,
-        default: true,
-    },
-    notifyVoice: {
-        type: OptionType.BOOLEAN,
-        description: "Notify on voice channel changes",
-        restartNeeded: false,
-        default: false,
-    },
-    persistNotifications: {
-        type: OptionType.BOOLEAN,
-        description: "Persist notifications",
-        restartNeeded: false,
-        default: false,
-    },
-    userIds: {
-        type: OptionType.STRING,
-        description: "User IDs (comma separated)",
-        restartNeeded: false,
-        default: "",
-    }
-});
-
-function getUserIdList() {
-    try {
-        return settings.store.userIds.split(",").filter(Boolean);
-    } catch (e) {
-        settings.store.userIds = "";
-        return [];
-    }
-}
-
-// show rich body with user avatar
-const getRichBody = (user: User, text: string | React.ReactNode) => <div
-    style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
-    <span>{text}</span>
-    <div style={{ position: "relative" }}>
-        <PlatformIndicator user={user} style={{ position: "absolute", top: "-8px", right: "-10px" }} />
-    </div>
-</div>;
-
-function triggerVoiceNotification(userId: string, userChannelId: string | null) {
-    const user = UserStore.getUser(userId);
-    const myChanId = SelectedChannelStore.getVoiceChannelId();
-
-    const name = user.username;
-
-    const title = `User ${name} changed voice status`;
-    if (userChannelId) {
-        if (userChannelId !== myChanId) {
-            showNotification({
-                title,
-                body: "joined a new voice channel",
-                noPersist: !settings.store.persistNotifications,
-                richBody: getRichBody(user, `${name} joined a new voice channel`),
-                icon: user.getAvatarURL(void 0, 80, true),
-                color: "#43b581",
-            });
-        }
-    } else {
-        showNotification({
-            title,
-            body: "left their voice channel",
-            noPersist: !settings.store.persistNotifications,
-            richBody: getRichBody(user, `${name} left their voice channel`),
-            icon: user.getAvatarURL(void 0, 80, true),
-            color: "#f04747",
-        });
-    }
-}
-
-function toggleUserNotify(userId: string) {
-    const userIds = getUserIdList();
-    if (userIds.includes(userId)) {
-        userIds.splice(userIds.indexOf(userId), 1);
-    } else {
-        userIds.push(userId);
-    }
-    settings.store.userIds = userIds.join(",");
-}
-
-interface UserContextProps {
-    channel?: Channel;
-    guildId?: string;
-    user: User;
-}
-
-const UserContext: NavContextMenuPatchCallback = (children, { user }: UserContextProps) => {
-    if (!user || user.id === UserStore.getCurrentUser().id) return;
-    const isNotifyOn = getUserIdList().includes(user.id);
-    const label = isNotifyOn ? "Don't notify on changes" : "Notify on changes";
-    const icon = isNotifyOn ? NotificationsOffIcon : NotificationsOnIcon;
-
-    children.splice(-1, 0, (
-        <Menu.MenuGroup>
-            <Menu.MenuItem
-                id="toggle-notify-user"
-                label={label}
-                action={() => toggleUserNotify(user.id)}
-                icon={icon}
-            />
-        </Menu.MenuGroup>
-    ));
-};
-
-const lastStatuses = new Map<string, string>();
-const lastGames = new Map<string, string | null>();
-
-function getGameActivityLabel(activities: PresenceUpdate["activities"]) {
-    const gameActivity = activities.find(activity => activity.type === 0);
-    if (!gameActivity) return null;
-
-    return gameActivity.state ?? gameActivity.details ?? gameActivity.name ?? null;
-}
-
-function triggerGameNotification(userId: string, game: string | null, previousGame: string | null) {
-    const user = UserStore.getUser(userId);
-    const name = user.globalName || user.username;
-
-    if (game) {
-        showNotification({
-            title: `${name} changed game activity`,
-            body: previousGame ? `They are now playing ${game}` : `They started playing ${game}`,
-            noPersist: !settings.store.persistNotifications,
-            richBody: getRichBody(user, `${name} is now playing ${game}`),
-            icon: user.getAvatarURL(void 0, 80, true),
-            color: "#5865f2",
-        });
-        return;
-    }
-
-    showNotification({
-        title: `${name} changed game activity`,
-        body: previousGame ? `They stopped playing ${previousGame}` : "They stopped playing a game",
-        noPersist: !settings.store.persistNotifications,
-        richBody: getRichBody(user, `${name} stopped playing ${previousGame ?? "a game"}`),
-        icon: user.getAvatarURL(void 0, 80, true),
-        color: "#747f8d",
-    });
-}
+import { UserContext, flux } from "./eventHandlers";
+import { openStatusLoggerModal, StatusLoggerSettingsButton } from "./loggerModal";
+import { settings } from "./settings";
 
 export default definePlugin({
     name: "NotifyUserChanges",
     description: "Adds a notify option in the user context menu to get notified when a user changes voice channels, online status, or game activity",
-    authors: [Devs.D3SOX],
+    authors: [Devs.Bill],
 
     settings,
 
     contextMenus: {
-        "user-context": UserContext
+        "user-context": UserContext as NavContextMenuPatchCallback,
     },
 
-    flux: {
-        VOICE_STATE_UPDATES({ voiceStates }: { voiceStates: VoiceState[]; }) {
-            if (!settings.store.notifyVoice || !settings.store.userIds) {
-                return;
-            }
-            for (const { userId, channelId, oldChannelId } of voiceStates) {
-                if (channelId !== oldChannelId) {
-                    const isFollowed = getUserIdList().includes(userId);
-                    if (!isFollowed) {
-                        continue;
-                    }
-
-                    if (channelId) {
-                        // move or join new channel
-                        triggerVoiceNotification(userId, channelId);
-                    } else if (oldChannelId) {
-                        // leave
-                        triggerVoiceNotification(userId, null);
-                    }
-                }
-            }
-        },
-        PRESENCE_UPDATES({ updates }: { updates: PresenceUpdate[]; }) {
-            if (!settings.store.notifyStatus || !settings.store.userIds) {
-                return;
-            }
-            for (const { user: { id: userId, username }, status, clientStatus, activities } of updates) {
-                const isFollowed = getUserIdList().includes(userId);
-                if (!isFollowed) {
-                    continue;
-                }
-
-                if (!clientStatus) {
-                    continue;
-                }
-                // this is also triggered for multiple guilds and when only the activities change, so we have to check if the status actually changed
-                if (lastStatuses.has(userId) && lastStatuses.get(userId) !== status) {
-                    const user = UserStore.getUser(userId);
-                    // @ts-ignore
-                    const name = user.globalName || username;
-
-                    showNotification({
-                        title: `${name} changed status`,
-                        body: `They are now ${status}`,
-                        noPersist: !settings.store.persistNotifications,
-                        richBody: getRichBody(user, `${name}'s status is now ${status}`),
-                        icon: user.getAvatarURL(void 0, 80, true),
-                        color: status === "online" ? "#43b581" : status === "idle" ? "#faa61a" : status === "dnd" ? "#f04747" : "#747f8d",
-                    });
-                }
-                lastStatuses.set(userId, status);
-
-                const game = getGameActivityLabel(activities);
-                const previousGame = lastGames.get(userId) ?? null;
-                if (lastGames.has(userId) && previousGame !== game) {
-                    triggerGameNotification(userId, game, previousGame);
-                }
-                lastGames.set(userId, game);
-            }
-        }
+    toolboxActions: {
+        "Open Status Logger": openStatusLoggerModal,
     },
 
+    flux,
+
+    settingsAboutComponent: StatusLoggerSettingsButton,
 });

@@ -27,6 +27,34 @@ export interface PresenceUpdate {
         details?: string;
         state?: string;
         type: number;
+        application_id?: string;
+        url?: string;
+        flags?: number;
+        timestamps?: {
+            start?: number;
+            end?: number;
+        };
+        assets?: {
+            large_image?: string;
+            large_text?: string;
+            large_url?: string;
+            small_image?: string;
+            small_text?: string;
+            small_url?: string;
+        };
+        party?: {
+            id?: string;
+            size?: [number, number];
+        };
+        buttons?: string[];
+        metadata?: {
+            button_urls?: string[];
+        };
+        emoji?: {
+            id?: string;
+            name?: string;
+            animated?: boolean;
+        };
     }>;
 }
 
