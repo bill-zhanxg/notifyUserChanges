@@ -316,13 +316,18 @@ function HistoryModal(props: RenderModalProps) {
 
 					{filtered.length > eventsPerPage ?
 						<div className="notify-history-pagination" role="group" aria-label="History pagination">
-							<Button disabled={clampedPage === 0} onClick={() => setPage((prev) => Math.max(0, prev - 1))}>
+							<Button
+								className="notify-history-page-button"
+								disabled={clampedPage === 0}
+								onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+							>
 								&#60;
 							</Button>
 							<Forms.FormText className="notify-history-page-indicator">
 								Page {clampedPage + 1} / {totalPages}
 							</Forms.FormText>
 							<Button
+								className="notify-history-page-button"
 								disabled={clampedPage >= totalPages - 1}
 								onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
 							>
@@ -343,3 +348,4 @@ function HistoryModal(props: RenderModalProps) {
 		</Modal>
 	);
 }
+Button;

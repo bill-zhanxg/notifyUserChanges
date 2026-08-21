@@ -97,6 +97,16 @@
     color: var(--text-muted);
 }
 
+.notify-history-page-button {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .notify-history-card {
     position: relative;
     overflow: hidden;
