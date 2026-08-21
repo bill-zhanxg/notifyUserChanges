@@ -44,6 +44,12 @@ export const settings = definePluginSettings({
         restartNeeded: false,
         default: 500,
     },
+    eventsPerPage: {
+        type: OptionType.NUMBER,
+        description: "Status logger events per page",
+        restartNeeded: false,
+        default: 100,
+    },
     userIds: {
         type: OptionType.STRING,
         description: "User IDs (comma separated)",

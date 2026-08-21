@@ -9,17 +9,7 @@ import './style.css';
 import { Card } from '@components/Card';
 import { classes } from '@utils/misc';
 import { RenderModalProps } from '@vencord/discord-types';
-import {
-	Button,
-	ConfirmModal,
-	Forms,
-	Modal,
-	openModal,
-	React,
-	Select,
-	TextInput,
-	Tooltip,
-} from '@webpack/common';
+import { Button, ConfirmModal, Forms, Modal, openModal, React, Select, TextInput, Tooltip } from '@webpack/common';
 
 import {
 	clearHistory,
@@ -31,6 +21,14 @@ import {
 	useHistory,
 } from './history';
 import { HistoryPlatformIndicators } from './historyPlatformIndicators';
+import { settings } from './settings';
+
+const DEFAULT_EVENTS_PER_PAGE = 100;
+
+function sanitizeEventsPerPage(value: number) {
+	const parsed = Number.isFinite(value) ? Math.floor(value) : DEFAULT_EVENTS_PER_PAGE;
+	return Math.max(1, Math.min(500, parsed));
+}
 
 function FilterSelect<T extends string | number>({
 	value,
@@ -191,6 +189,8 @@ function HistoryModal(props: RenderModalProps) {
 	const [query, setQuery] = React.useState('');
 	const [kindFilter, setKindFilter] = React.useState<'all' | NotificationKind>('all');
 	const [sort, setSort] = React.useState<'newest' | 'oldest'>('newest');
+	const [page, setPage] = React.useState(0);
+	const [eventsPerPage, setEventsPerPage] = React.useState(() => sanitizeEventsPerPage(settings.store.eventsPerPage));
 
 	const filtered = React.useMemo(() => {
 		const search = query.trim().toLowerCase();
@@ -212,6 +212,30 @@ function HistoryModal(props: RenderModalProps) {
 		rows.sort((a, b) => (sort === 'newest' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp));
 		return rows;
 	}, [history, query, kindFilter, sort]);
+
+	const totalPages = Math.max(1, Math.ceil(filtered.length / eventsPerPage));
+	const clampedPage = Math.min(page, totalPages - 1);
+	const pageStart = clampedPage * eventsPerPage;
+	const pageEntries = React.useMemo(
+		() => filtered.slice(pageStart, pageStart + eventsPerPage),
+		[filtered, pageStart, eventsPerPage],
+	);
+
+	React.useEffect(() => {
+		setPage(0);
+	}, [query, kindFilter, sort, eventsPerPage]);
+
+	React.useEffect(() => {
+		if (page !== clampedPage) {
+			setPage(clampedPage);
+		}
+	}, [page, clampedPage]);
+
+	const setEventsPerPageSetting = React.useCallback((value: number) => {
+		const next = sanitizeEventsPerPage(value);
+		settings.store.eventsPerPage = next;
+		setEventsPerPage(next);
+	}, []);
 
 	return (
 		<Modal
@@ -284,17 +308,34 @@ function HistoryModal(props: RenderModalProps) {
 					</div>
 				</div>
 
-				<Forms.FormText className="notify-history-results">
-					Showing {filtered.length} of {history.length} events.
-				</Forms.FormText>
+				<div className="notify-history-results-container">
+					<Forms.FormText className="notify-history-results">
+						Showing {filtered.length ? pageStart + 1 : 0}-{Math.min(pageStart + eventsPerPage, filtered.length)} of{' '}
+						{filtered.length} filtered events ({history.length} total).
+					</Forms.FormText>
+
+					{filtered.length > eventsPerPage ?
+						<div className="notify-history-pagination" role="group" aria-label="History pagination">
+							<Button disabled={clampedPage === 0} onClick={() => setPage((prev) => Math.max(0, prev - 1))}>
+								&#60;
+							</Button>
+							<Forms.FormText className="notify-history-page-indicator">
+								Page {clampedPage + 1} / {totalPages}
+							</Forms.FormText>
+							<Button
+								disabled={clampedPage >= totalPages - 1}
+								onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
+							>
+								&#62;
+							</Button>
+						</div>
+					:	null}
+				</div>
 
 				{filtered.length ?
 					<div className="notify-history-list">
-						{filtered.map((entry, index) => (
-							<HistoryCard
-								key={`${entry.timestamp}-${entry.kind}-${entry.username}-${index}`}
-								entry={entry}
-							/>
+						{pageEntries.map((entry) => (
+							<HistoryCard key={entry.id} entry={entry} />
 						))}
 					</div>
 				:	<Forms.FormText>No matching history entries.</Forms.FormText>}

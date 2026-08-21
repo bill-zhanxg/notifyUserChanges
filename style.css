@@ -62,7 +62,7 @@
 
 .notify-history-filters {
     display: grid;
-    grid-template-columns: minmax(0, 1.8fr) minmax(190px, 0.8fr) minmax(190px, 0.8fr);
+    grid-template-columns: minmax(0, 1.8fr) minmax(160px, 0.7fr) minmax(160px, 0.7fr) minmax(160px, 0.7fr);
     gap: 12px;
     align-items: center;
 }
@@ -77,6 +77,23 @@
 }
 
 .notify-history-results {
+    color: var(--text-muted);
+}
+
+.notify-history-results-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notify-history-pagination {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.notify-history-page-indicator {
+    margin: 0;
     color: var(--text-muted);
 }
 
