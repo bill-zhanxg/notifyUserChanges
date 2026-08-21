@@ -13,7 +13,6 @@ import {
 	Button,
 	ConfirmModal,
 	Forms,
-	ListScrollerThin,
 	Modal,
 	openModal,
 	React,
@@ -290,14 +289,14 @@ function HistoryModal(props: RenderModalProps) {
 				</Forms.FormText>
 
 				{filtered.length ?
-					<ListScrollerThin
-						className="notify-history-list"
-						sections={[filtered.length]}
-						sectionHeight={0}
-						rowHeight={180}
-						renderSection={() => null}
-						renderRow={(item) => <HistoryCard entry={filtered[item.row]} />}
-					/>
+					<div className="notify-history-list">
+						{filtered.map((entry, index) => (
+							<HistoryCard
+								key={`${entry.timestamp}-${entry.kind}-${entry.username}-${index}`}
+								entry={entry}
+							/>
+						))}
+					</div>
 				:	<Forms.FormText>No matching history entries.</Forms.FormText>}
 			</div>
 		</Modal>
