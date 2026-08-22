@@ -344,19 +344,19 @@
 }
 
 .notify-history-card-status {
-    --notify-accent: #5865f2;
+    --notify-accent: #3b7ee2;
 }
 
 .notify-history-card-game {
-    --notify-accent: #5865f2;
+    --notify-accent: #2bc97f;
 }
 
 .notify-history-card-voice-join {
-    --notify-accent: #43b581;
+    --notify-accent: #e9e513;
 }
 
 .notify-history-card-voice-leave {
-    --notify-accent: #f04747;
+    --notify-accent: #e9e513;
 }
 
 @media (max-width: 900px) {
