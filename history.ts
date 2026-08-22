@@ -335,15 +335,52 @@ export function resolveVoiceContext(channelId: string | null): VoiceContext | un
 	};
 }
 
-export async function resolveActivityThumbnail(activity: ActivitySnapshot) {
-	const key = activity.assets?.large_image;
-	if (!key) return null;
+function normalizeActivityAssetUrl(value: string, applicationId?: string) {
+	if (!value) return null;
 
-	if (key.startsWith('http://') || key.startsWith('https://')) return key;
+	if (value.startsWith('http://') || value.startsWith('https://')) {
+		return value;
+	}
+
+	if (value.startsWith('mp:')) {
+		const mediaPath = value.slice(3);
+		return `https://media.discordapp.net/${mediaPath.replace(/^\/+/, '')}`;
+	}
+
+	if (applicationId && /^\d+$/.test(value)) {
+		return `https://cdn.discordapp.com/app-assets/${applicationId}/${value}.png?size=256`;
+	}
+
+	return null;
+}
+
+export async function resolveActivityThumbnail(activity: ActivitySnapshot) {
+	const assetKeys = [activity.assets?.large_image, activity.assets?.small_image].filter(Boolean) as string[];
+	if (!assetKeys.length) return null;
+
+	const applicationId = activity.application_id;
+
+	for (const key of assetKeys) {
+		const direct = normalizeActivityAssetUrl(key, applicationId);
+		if (direct) return direct;
+	}
 
 	try {
-		const applicationId = activity.application_id ?? '0';
-		return (await ApplicationAssetUtils.fetchAssetIds(applicationId, [key]))[0] ?? null;
+		if (!applicationId) return null;
+
+		const resolved = await ApplicationAssetUtils.fetchAssetIds(applicationId, assetKeys);
+		for (const value of resolved ?? []) {
+			if (!value) continue;
+			const normalized = normalizeActivityAssetUrl(value, applicationId);
+			if (normalized) return normalized;
+		}
+
+		for (const key of assetKeys) {
+			const fallback = normalizeActivityAssetUrl(key, applicationId);
+			if (fallback) return fallback;
+		}
+
+		return null;
 	} catch {
 		return null;
 	}
