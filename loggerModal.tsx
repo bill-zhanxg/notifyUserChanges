@@ -14,6 +14,7 @@ import { Button, ConfirmModal, Forms, Modal, openModal, React, Select, TextInput
 import {
 	clearHistory,
 	formatHistoryTimestamp,
+	formatHistoryTimestampTooltip,
 	getKindLabel,
 	getKindTone,
 	HistoryEntry,
@@ -95,7 +96,13 @@ function HistoryCard({ entry }: { entry: HistoryEntry }) {
 						<div className="notify-history-card-topline">
 							<strong className="notify-history-title">{entry.displayName}</strong>
 							<KindBadge kind={entry.kind} />
-							<span className="notify-history-time">{formatHistoryTimestamp(entry.timestamp)}</span>
+							<Tooltip text={formatHistoryTimestampTooltip(entry.timestamp)}>
+								{(tooltipProps) => (
+									<span {...tooltipProps} className="notify-history-time">
+										{formatHistoryTimestamp(entry.timestamp)}
+									</span>
+								)}
+							</Tooltip>
 						</div>
 						<div className="notify-history-card-subtitle">{entry.title}</div>
 						<div className="notify-history-card-summary">
