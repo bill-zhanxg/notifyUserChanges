@@ -170,8 +170,13 @@
 	line-height: 1.2;
 }
 
-.notify-history-time {
+.notify-history-copy-raw {
 	margin-left: auto;
+	background-color: inherit;
+	color: var(--text-muted);
+}
+
+.notify-history-time {
 	font-weight: bold;
 	font-size: 16px;
 }
@@ -302,12 +307,9 @@
 .notify-history-game-meta {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(110px, 140px);
-	align-items: stretch;
+	align-items: center;
 	gap: 12px;
-	padding: 12px;
-	border-radius: 16px;
-	border: 1px solid var(--background-modifier-accent);
-	background: var(--background-primary);
+	padding: 10px 0 2px;
 }
 
 .notify-history-game-copy {
@@ -319,9 +321,14 @@
 }
 
 .notify-history-game-name {
-	font-size: 15px;
+	font-size: 16px;
 	font-weight: 700;
 	color: var(--text-normal);
+}
+
+.notify-history-game-copy > span {
+	color: var(--text-muted);
+	line-height: 1.35;
 }
 
 .notify-history-game-summary {
@@ -337,14 +344,42 @@
 	font-size: 12px;
 }
 
+.notify-history-game-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 6px;
+}
+
+.notify-history-game-actions button {
+	min-height: 30px;
+	padding: 0 10px;
+	font-size: 12px;
+}
+
+.notify-history-game-tooltip {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+}
+
+.notify-history-game-small-image {
+	width: 48px;
+	height: 48px;
+	object-fit: cover;
+	border-radius: 6px;
+}
+
 .notify-history-game-thumb {
-	width: 96px;
-	height: 96px;
+	width: 112px;
+	height: 112px;
 	flex: 0 0 auto;
 	object-fit: cover;
-	border-radius: 16px;
+	border-radius: 14px;
 	border: 1px solid var(--background-modifier-accent);
 	background: var(--background-secondary);
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
 }
 
 .notify-history-card-status {
@@ -372,9 +407,12 @@
 		grid-template-columns: 1fr;
 	}
 
-	.notify-history-card-hero,
+	.notify-history-card-hero {
+		grid-template-columns: 1fr;
+	}
+
 	.notify-history-game-meta {
-		flex-direction: column;
+		grid-template-columns: 1fr;
 	}
 
 	.notify-history-time {
@@ -383,6 +421,6 @@
 
 	.notify-history-game-thumb {
 		width: 100%;
-		height: 160px;
+		height: 180px;
 	}
 }

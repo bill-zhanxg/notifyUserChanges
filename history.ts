@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid';
 
 import * as DataStore from '@api/DataStore';
 import { findStoreLazy } from '@webpack';
-import { ApplicationAssetUtils, useEffect, useReducer, useState } from '@webpack/common';
+import { useEffect, useReducer, useState } from '@webpack/common';
 
 import { settings } from './settings';
 import { PresenceUpdate } from './types';
@@ -82,25 +82,42 @@ export type ActivitySnapshot = PresenceUpdate['activities'][number] & {
 	};
 };
 
-export interface HistoryEntry {
+export type HistoryEntry = HistoryEntryStatus | HistoryEntryVoice | HistoryEntryGame;
+
+type HistoryEntryInput =
+	| Omit<HistoryEntryStatus, 'id' | 'timestamp'>
+	| Omit<HistoryEntryVoice, 'id' | 'timestamp'>
+	| Omit<HistoryEntryGame, 'id' | 'timestamp'>;
+
+interface HistoryEntryBase {
 	id: string;
 	timestamp: number;
 	kind: NotificationKind;
 	userId: string;
 	username: string;
 	displayName: string;
-	title: string;
-	body: string;
-	color: string;
 	avatarUrl: string;
+}
+
+export interface HistoryEntryStatus extends HistoryEntryBase {
+	kind: 'status';
+	previous?: string | null;
+	current: string;
+	platformSnapshot: PlatformSnapshot[];
+}
+
+export interface HistoryEntryVoice extends HistoryEntryBase {
+	kind: 'voice-join' | 'voice-leave';
 	previous?: string | null;
 	current?: string | null;
-	platformSnapshot?: PlatformSnapshot[];
 	voice?: VoiceContext;
-	activity?: ActivitySnapshot;
-	activityThumbnail?: string | null;
-	activityTitle?: string | null;
-	activitySummary?: string | null;
+}
+
+export interface HistoryEntryGame extends HistoryEntryBase {
+	kind: 'game';
+	previous?: string | null;
+	current?: string | null;
+	activity: ActivitySnapshot;
 }
 
 function safeDate(value: number | string | null | undefined) {
@@ -150,7 +167,11 @@ export function sanitizeHistoryEntry(entry: HistoryEntry): HistoryEntry | null {
 	return {
 		...entry,
 		timestamp: timestamp.getTime(),
-		activity: sanitizeActivity(entry.activity),
+		...(entry.kind === 'game' ?
+			{
+				activity: sanitizeActivity(entry.activity),
+			}
+		:	{}),
 	};
 }
 
@@ -212,7 +233,7 @@ export async function getHistory() {
 	return sanitized;
 }
 
-async function persistHistoryEntry(entry: Omit<HistoryEntry, 'id' | 'timestamp'>) {
+async function persistHistoryEntry(entry: HistoryEntryInput) {
 	const limit = Math.max(1, settings.store.historyLimit);
 
 	await DataStore.update(HISTORY_KEY, (old: HistoryEntry[] | undefined) => {
@@ -304,22 +325,6 @@ export function getStatusColor(status: string) {
 	}
 }
 
-export function getPlatformColor(platform: string) {
-	switch (platform) {
-		case 'desktop':
-			return '#5865f2';
-		case 'web':
-			return '#2ea043';
-		case 'mobile':
-			return '#faa61a';
-		case 'embedded':
-		case 'console':
-			return '#f97316';
-		default:
-			return '#747f8d';
-	}
-}
-
 export function resolveVoiceContext(channelId: string | null): VoiceContext | undefined {
 	if (!channelId) return undefined;
 
@@ -335,57 +340,6 @@ export function resolveVoiceContext(channelId: string | null): VoiceContext | un
 	};
 }
 
-function normalizeActivityAssetUrl(value: string, applicationId?: string) {
-	if (!value) return null;
-
-	if (value.startsWith('http://') || value.startsWith('https://')) {
-		return value;
-	}
-
-	if (value.startsWith('mp:')) {
-		const mediaPath = value.slice(3);
-		return `https://media.discordapp.net/${mediaPath.replace(/^\/+/, '')}`;
-	}
-
-	if (applicationId && /^\d+$/.test(value)) {
-		return `https://cdn.discordapp.com/app-assets/${applicationId}/${value}.png?size=256`;
-	}
-
-	return null;
-}
-
-export async function resolveActivityThumbnail(activity: ActivitySnapshot) {
-	const assetKeys = [activity.assets?.large_image, activity.assets?.small_image].filter(Boolean) as string[];
-	if (!assetKeys.length) return null;
-
-	const applicationId = activity.application_id;
-
-	for (const key of assetKeys) {
-		const direct = normalizeActivityAssetUrl(key, applicationId);
-		if (direct) return direct;
-	}
-
-	try {
-		if (!applicationId) return null;
-
-		const resolved = await ApplicationAssetUtils.fetchAssetIds(applicationId, assetKeys);
-		for (const value of resolved ?? []) {
-			if (!value) continue;
-			const normalized = normalizeActivityAssetUrl(value, applicationId);
-			if (normalized) return normalized;
-		}
-
-		for (const key of assetKeys) {
-			const fallback = normalizeActivityAssetUrl(key, applicationId);
-			if (fallback) return fallback;
-		}
-
-		return null;
-	} catch {
-		return null;
-	}
-}
-
 export function getActivitySummary(activity: ActivitySnapshot) {
 	const summary = activity.state ?? activity.details;
 	if (summary) return summary;
@@ -396,10 +350,6 @@ export function getActivitySummary(activity: ActivitySnapshot) {
 
 export function getActivityTitle(activity: ActivitySnapshot) {
 	return activity.name || getActivitySummary(activity) || 'Game activity';
-}
-
-export function recordVoiceEntry(entry: Omit<HistoryEntry, 'id' | 'timestamp'>) {
-	void persistHistoryEntry(entry);
 }
 
 export function recordStatusEntry(
@@ -416,9 +366,6 @@ export function recordStatusEntry(
 		userId,
 		username,
 		displayName,
-		title: `${displayName} changed status`,
-		body: `Status is now ${status}`,
-		color: getStatusColor(status),
 		avatarUrl,
 		previous: previousStatus,
 		current: status,
@@ -426,7 +373,11 @@ export function recordStatusEntry(
 	});
 }
 
-export async function recordGameEntry(
+export function recordVoiceEntry(entry: HistoryEntryInput) {
+	void persistHistoryEntry(entry);
+}
+
+export function recordGameEntry(
 	userId: string,
 	username: string,
 	displayName: string,
@@ -437,7 +388,6 @@ export async function recordGameEntry(
 	const storedActivity = activity ?? previousActivity;
 	if (!storedActivity) return;
 
-	const activityThumbnail = await resolveActivityThumbnail(storedActivity);
 	const activityTitle = getActivityTitle(storedActivity);
 	const activitySummary =
 		activity ? getActivitySummary(activity)
@@ -449,12 +399,6 @@ export async function recordGameEntry(
 		userId,
 		username,
 		displayName,
-		title: `${displayName} changed game activity`,
-		body:
-			activity ? activitySummary : (
-				`Stopped playing ${previousActivity ? getActivitySummary(previousActivity) : storedActivity.name}`
-			),
-		color: '#5865f2',
 		avatarUrl,
 		previous:
 			previousActivity ? getActivitySummary(previousActivity)
@@ -462,8 +406,5 @@ export async function recordGameEntry(
 			: activitySummary,
 		current: activity ? activitySummary : null,
 		activity: storedActivity,
-		activityThumbnail,
-		activityTitle,
-		activitySummary,
 	});
 }

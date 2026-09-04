@@ -66,9 +66,6 @@ function triggerVoiceNotification(userId: string, userChannelId: string | null) 
                 userId,
                 username: user.username ?? userId,
                 displayName,
-                title,
-                body,
-                color: "#43b581",
                 avatarUrl: user.getAvatarURL(void 0, 80, true),
                 current: voice?.channelName ?? userChannelId,
                 previous: null,
@@ -97,9 +94,6 @@ function triggerVoiceNotification(userId: string, userChannelId: string | null) 
             userId,
             username: user.username ?? userId,
             displayName,
-            title,
-            body,
-            color: "#f04747",
             avatarUrl: user.getAvatarURL(void 0, 80, true),
             current: null,
             previous: voice?.channelName ?? myChanId,
@@ -215,7 +209,7 @@ export const flux = {
                 const user = UserStore.getUser(userId);
                 const name = user.globalName || user.username || username || user.id;
 
-                void recordGameEntry(userId, user.username ?? username ?? user.id, name, currentActivity, previousActivity, user.getAvatarURL(void 0, 80, true));
+                recordGameEntry(userId, user.username ?? username ?? user.id, name, currentActivity, previousActivity, user.getAvatarURL(void 0, 80, true));
 
                 if (settings.store.showGameActivityChangeNotification) {
                     showNotification({

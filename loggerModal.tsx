@@ -7,9 +7,21 @@
 import './style.css';
 
 import { Card } from '@components/Card';
+import { copyToClipboard } from '@utils/clipboard';
 import { classes } from '@utils/misc';
 import { RenderModalProps } from '@vencord/discord-types';
-import { Button, ConfirmModal, Forms, Modal, openModal, React, Select, TextInput, Tooltip } from '@webpack/common';
+import {
+	ApplicationAssetUtils,
+	Button,
+	ConfirmModal,
+	Forms,
+	Modal,
+	openModal,
+	React,
+	Select,
+	TextInput,
+	Tooltip,
+} from '@webpack/common';
 
 import {
 	clearHistory,
@@ -18,6 +30,9 @@ import {
 	getKindLabel,
 	getKindTone,
 	HistoryEntry,
+	HistoryEntryGame,
+	HistoryEntryStatus,
+	HistoryEntryVoice,
 	NotificationKind,
 	useHistory,
 } from './history';
@@ -55,119 +70,6 @@ function FilterSelect<T extends string | number>({
 	);
 }
 
-function KindBadge({ kind }: { kind: NotificationKind }) {
-	return (
-		<span className={classes('notify-history-badge', `notify-history-badge-${getKindTone(kind)}`)}>
-			{getKindLabel(kind)}
-		</span>
-	);
-}
-
-function renderCompactMeta(entry: HistoryEntry) {
-	const hiddenMeta = [
-		entry.previous ? `Previous: ${entry.previous}` : null,
-		entry.current ? `Current: ${entry.current}` : null,
-		entry.voice?.channelId ? `Channel ID: ${entry.voice.channelId}` : null,
-		entry.voice?.guildId ? `Server ID: ${entry.voice.guildId}` : null,
-	]
-		.filter(Boolean)
-		.join('\n');
-
-	if (!hiddenMeta) return null;
-
-	return (
-		<Tooltip text={hiddenMeta}>
-			{(tooltipProps) => (
-				<span {...tooltipProps} className="notify-history-compact-meta">
-					More details
-				</span>
-			)}
-		</Tooltip>
-	);
-}
-
-function HistoryCard({ entry }: { entry: HistoryEntry }) {
-	return (
-		<Card className={classes('notify-history-card', `notify-history-card-${entry.kind}`)} defaultPadding={false}>
-			<div className="notify-history-card-inner">
-				<div className="notify-history-card-hero">
-					<img src={entry.avatarUrl} alt="" className="notify-history-avatar" />
-					<div className="notify-history-card-body">
-						<div className="notify-history-card-topline">
-							<strong className="notify-history-title">{entry.displayName}</strong>
-							<KindBadge kind={entry.kind} />
-							<Tooltip text={formatHistoryTimestampTooltip(entry.timestamp)}>
-								{(tooltipProps) => (
-									<span {...tooltipProps} className="notify-history-time">
-										{formatHistoryTimestamp(entry.timestamp)}
-									</span>
-								)}
-							</Tooltip>
-						</div>
-						<div className="notify-history-card-subtitle">{entry.title}</div>
-						<div className="notify-history-card-summary">
-							<span>{entry.body}</span>
-							{entry.kind === 'status' && entry.platformSnapshot?.length ?
-								<div>
-									<HistoryPlatformIndicators platforms={entry.platformSnapshot} />
-								</div>
-							:	null}
-						</div>
-
-						{entry.kind === 'voice-join' || entry.kind === 'voice-leave' ?
-							<div className="notify-history-card-context">
-								<span className="notify-history-context-label">{entry.voice?.guildName ?? 'Unknown server'}</span>
-								<span className="notify-history-context-separator">•</span>
-								<span className="notify-history-context-label">
-									{entry.voice?.channelName ?? entry.current ?? 'Unknown channel'}
-								</span>
-								{entry.voice?.channelId ?
-									<Tooltip
-										text={`Channel ID: ${entry.voice.channelId}${entry.voice.guildId ? `\nServer ID: ${entry.voice.guildId}` : ''}`}
-									>
-										{(tooltipProps) => (
-											<span {...tooltipProps} className="notify-history-compact-meta">
-												Details
-											</span>
-										)}
-									</Tooltip>
-								:	null}
-							</div>
-						:	null}
-
-						{entry.kind === 'game' ?
-							<div className="notify-history-game-meta">
-								<div className="notify-history-game-copy">
-									<span className="notify-history-game-name">
-										{entry.activityTitle ?? entry.activity?.name ?? entry.displayName}
-									</span>
-									<span className="notify-history-game-summary">{entry.activitySummary ?? entry.body}</span>
-									<div className="notify-history-game-flags">
-										{entry.activity?.details ?
-											<span>{entry.activity.details}</span>
-										:	null}
-										{entry.activity?.state ?
-											<span>{entry.activity.state}</span>
-										:	null}
-										{entry.activity?.timestamps?.start ?
-											<span>Started {formatHistoryTimestamp(entry.activity.timestamps.start)}</span>
-										:	null}
-									</div>
-								</div>
-								{entry.activityThumbnail ?
-									<img src={entry.activityThumbnail} alt="" className="notify-history-game-thumb" />
-								:	null}
-							</div>
-						:	null}
-
-						{renderCompactMeta(entry)}
-					</div>
-				</div>
-			</div>
-		</Card>
-	);
-}
-
 export function openStatusLoggerModal() {
 	openModal((modalProps) => <HistoryModal {...modalProps} />);
 }
@@ -194,22 +96,24 @@ export function StatusLoggerSettingsButton() {
 function HistoryModal(props: RenderModalProps) {
 	const history = useHistory();
 	const [query, setQuery] = React.useState('');
-	const [kindFilter, setKindFilter] = React.useState<'all' | NotificationKind>('all');
+	const [kindFilter, setKindFilter] = React.useState<'all' | 'voice-change' | NotificationKind>('all');
 	const [sort, setSort] = React.useState<'newest' | 'oldest'>('newest');
 	const [page, setPage] = React.useState(0);
-	const [eventsPerPage, setEventsPerPage] = React.useState(() => sanitizeEventsPerPage(settings.store.eventsPerPage));
+	const eventsPerPage = React.useMemo(() => sanitizeEventsPerPage(settings.store.eventsPerPage), []);
 
 	const filtered = React.useMemo(() => {
 		const search = query.trim().toLowerCase();
 		const rows = history.filter((entry) => {
-			if (kindFilter !== 'all' && entry.kind !== kindFilter) return false;
+			if (kindFilter === 'voice-change') {
+				if (entry.kind !== 'voice-join' && entry.kind !== 'voice-leave') return false;
+			} else if (kindFilter !== 'all' && entry.kind !== kindFilter) {
+				return false;
+			}
 			if (!search) return true;
 
 			return [
 				entry.username,
 				entry.displayName,
-				entry.title,
-				entry.body,
 				entry.previous ?? '',
 				entry.current ?? '',
 				getKindLabel(entry.kind),
@@ -237,12 +141,6 @@ function HistoryModal(props: RenderModalProps) {
 			setPage(clampedPage);
 		}
 	}, [page, clampedPage]);
-
-	const setEventsPerPageSetting = React.useCallback((value: number) => {
-		const next = sanitizeEventsPerPage(value);
-		settings.store.eventsPerPage = next;
-		setEventsPerPage(next);
-	}, []);
 
 	return (
 		<Modal
@@ -272,7 +170,7 @@ function HistoryModal(props: RenderModalProps) {
 				<div className="notify-history-hero">
 					<div>
 						<Forms.FormText className="notify-history-kicker">Local status database</Forms.FormText>
-						<h3 className="notify-history-heading">Searchable history with visual event cards</h3>
+						<h3 className="notify-history-heading">Notify User History Logs</h3>
 						<Forms.FormText className="notify-history-description">
 							Every notification is stored locally with the activity snapshot, channel context, and platform state so
 							you can review it later without relying on toast history.
@@ -297,8 +195,7 @@ function HistoryModal(props: RenderModalProps) {
 								{ label: 'All events', value: 'all' },
 								{ label: 'Status changes', value: 'status' },
 								{ label: 'Game activity', value: 'game' },
-								{ label: 'Voice joins', value: 'voice-join' },
-								{ label: 'Voice leaves', value: 'voice-leave' },
+								{ label: 'Voice Change', value: 'voice-change' },
 							]}
 						/>
 					</div>
@@ -355,4 +252,194 @@ function HistoryModal(props: RenderModalProps) {
 		</Modal>
 	);
 }
-Button;
+
+function KindBadge({ kind }: { kind: NotificationKind }) {
+	return (
+		<span className={classes('notify-history-badge', `notify-history-badge-${getKindTone(kind)}`)}>
+			{getKindLabel(kind)}
+		</span>
+	);
+}
+
+function HistoryCard({ entry }: { entry: HistoryEntry }) {
+	return (
+		<Card className={classes('notify-history-card', `notify-history-card-${entry.kind}`)} defaultPadding={false}>
+			<div className="notify-history-card-inner">
+				<div className="notify-history-card-hero">
+					<img src={entry.avatarUrl} alt="" className="notify-history-avatar" />
+					<div className="notify-history-card-body">
+						<div className="notify-history-card-topline">
+							<strong className="notify-history-title">{entry.displayName}</strong>
+							<KindBadge kind={entry.kind} />
+							<Tooltip text="Copy Raw">
+								{(tooltipProps) => (
+									<button
+										{...tooltipProps}
+										className="notify-history-copy-raw"
+										onClick={() => void copyToClipboard(JSON.stringify(entry, null, 2))}
+									>
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											width="24"
+											height="24"
+											viewBox="0 0 24 24"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="2"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											className="lucide lucide-copy-icon lucide-copy"
+										>
+											<rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+											<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+										</svg>
+									</button>
+								)}
+							</Tooltip>
+							<Tooltip text={formatHistoryTimestampTooltip(entry.timestamp)}>
+								{(tooltipProps) => (
+									<span {...tooltipProps} className="notify-history-time">
+										{formatHistoryTimestamp(entry.timestamp)}
+									</span>
+								)}
+							</Tooltip>
+						</div>
+
+						{entry.kind === 'status' ?
+							<StatusChangeDisplay entry={entry} />
+						:	null}
+						{entry.kind === 'voice-join' || entry.kind === 'voice-leave' ?
+							<VoiceChangeDisplay entry={entry} />
+						:	null}
+						{entry.kind === 'game' ?
+							<ActivityChangeDisplay entry={entry} />
+						:	null}
+					</div>
+				</div>
+			</div>
+		</Card>
+	);
+}
+
+function StatusChangeDisplay({ entry }: { entry: HistoryEntryStatus }) {
+	return (
+		<div className="notify-history-card-subtitle">
+			<span>
+				{entry.displayName} changed their status{entry.previous ? ` from ${entry.previous}` : ''} to {entry.current}
+			</span>
+			<div>
+				<HistoryPlatformIndicators platforms={entry.platformSnapshot} />
+			</div>
+		</div>
+	);
+}
+
+function VoiceChangeDisplay({ entry }: { entry: HistoryEntryVoice }) {
+	return (
+		<>
+			<div className="notify-history-card-summary">
+				<span>
+					{entry.kind === 'voice-join' ?
+						entry.voice?.channelName ?
+							entry.voice.guildName ?
+								`Joined Voice Channel ${entry.voice.channelName} in ${entry.voice.guildName}`
+							:	`Joined ${entry.voice.channelName}`
+						:	'Joined a voice channel'
+					: entry.voice?.channelName ?
+						entry.voice.guildName ?
+							`Left ${entry.voice.channelName} in ${entry.voice.guildName}`
+						:	`Left ${entry.voice.channelName}`
+					:	'Left a voice channel'}
+				</span>
+			</div>
+
+			<div className="notify-history-card-context">
+				<span className="notify-history-context-label">{entry.voice?.guildName ?? 'Unknown server'}</span>
+				<span className="notify-history-context-separator">•</span>
+				<span className="notify-history-context-label">
+					{entry.voice?.channelName ?? entry.current ?? 'Unknown channel'}
+				</span>
+				{entry.voice?.channelId ?
+					<Tooltip
+						text={`Channel ID: ${entry.voice.channelId}${entry.voice.guildId ? `\nServer ID: ${entry.voice.guildId}` : ''}`}
+					>
+						{(tooltipProps) => (
+							<span {...tooltipProps} className="notify-history-compact-meta">
+								Details
+							</span>
+						)}
+					</Tooltip>
+				:	null}
+			</div>
+		</>
+	);
+}
+function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
+	const largeImage = resolveActivityImage(entry.activity, entry.activity.assets?.large_image);
+	const smallImage = resolveActivityImage(entry.activity, entry.activity.assets?.small_image);
+	const smallDetails = [
+		entry.activity.assets?.small_text ? `Small text: ${entry.activity.assets.small_text}` : null,
+		smallImage ?
+			<img key="small-image" src={smallImage} alt="Small activity asset" className="notify-history-game-small-image" />
+		:	null,
+	].filter(Boolean);
+
+	return (
+		<div className="notify-history-game-meta">
+			{entry.current ?
+				<span className="notify-history-game-status">Started playing</span>
+			:	<span className="notify-history-game-status">Stopped playing</span>}
+			<div className="notify-history-game-copy">
+				<strong className="notify-history-game-name">{entry.activity.name}</strong>
+				{entry.activity.assets?.large_text ?
+					<span>{entry.activity.assets.large_text}</span>
+				:	null}
+				{entry.activity.details ?
+					<span>{entry.activity.details}</span>
+				:	null}
+				{entry.activity.state ?
+					<span>{entry.activity.state}</span>
+				:	null}
+				{entry.activity.timestamps?.start ?
+					<span>Started {formatHistoryTimestamp(entry.activity.timestamps.start)}</span>
+				:	null}
+				<div className="notify-history-game-actions">
+					{smallDetails.length ?
+						<Tooltip text={<div className="notify-history-game-tooltip">{smallDetails}</div>}>
+							{(tooltipProps) => (
+								<span {...tooltipProps} className="notify-history-compact-meta">
+									Small details
+								</span>
+							)}
+						</Tooltip>
+					:	null}
+					<Button onClick={() => void copyToClipboard(JSON.stringify(entry.activity, null, 2))}>Copy raw JSON</Button>
+				</div>
+			</div>
+			{largeImage ?
+				<img
+					src={largeImage}
+					alt={entry.activity.assets?.large_text ?? 'Large activity asset'}
+					className="notify-history-game-thumb"
+				/>
+			:	null}
+		</div>
+	);
+}
+
+function resolveActivityImage(activity: NonNullable<HistoryEntryGame['activity']>, asset: string | undefined) {
+	const applicationId = activity.application_id;
+	if (!applicationId || !asset) return null;
+
+	if (asset.startsWith('http://') || asset.startsWith('https://')) return asset;
+	if (asset.startsWith('mp:')) return `https://media.discordapp.net/${asset.slice(3).replace(/^\/+/, '')}`;
+
+	try {
+		return (ApplicationAssetUtils.getAssetImage as (applicationId: string, asset: string) => string | null)(
+			applicationId,
+			asset,
+		);
+	} catch {
+		return null;
+	}
+}
