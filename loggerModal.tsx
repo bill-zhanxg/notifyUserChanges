@@ -322,12 +322,30 @@ function HistoryCard({ entry }: { entry: HistoryEntry }) {
 }
 
 function StatusChangeDisplay({ entry }: { entry: HistoryEntryStatus }) {
+	const getStatusColor = (status: string | null) => {
+		if (!status) return 'notify-history-status-unknown';
+		const lowerStatus = status.toLowerCase();
+		if (lowerStatus === 'online') return 'notify-history-status-online';
+		if (lowerStatus === 'idle') return 'notify-history-status-idle';
+		if (lowerStatus === 'dnd') return 'notify-history-status-dnd';
+		if (lowerStatus === 'invisible' || lowerStatus === 'offline') return 'notify-history-status-offline';
+		return 'notify-history-status-unknown';
+	};
+
 	return (
-		<div className="notify-history-card-subtitle">
-			<span>
-				{entry.displayName} changed their status{entry.previous ? ` from ${entry.previous}` : ''} to {entry.current}
+		<div className="notify-history-status-container">
+			<span className="notify-history-status-text">
+				{entry.displayName} changed their status
+				{entry.previous ?
+					<>
+						{' '}
+						from{' '}
+						<span className={`notify-history-status-value ${getStatusColor(entry.previous)}`}>{entry.previous}</span>
+					</>
+				:	null}{' '}
+				to <span className={`notify-history-status-value ${getStatusColor(entry.current)}`}>{entry.current}</span>
 			</span>
-			<div>
+			<div className="notify-history-status-platforms">
 				<HistoryPlatformIndicators platforms={entry.platformSnapshot} />
 			</div>
 		</div>
@@ -342,13 +360,26 @@ function VoiceChangeDisplay({ entry }: { entry: HistoryEntryVoice }) {
 					{entry.kind === 'voice-join' ?
 						entry.voice?.channelName ?
 							entry.voice.guildName ?
-								`Joined Voice Channel ${entry.voice.channelName} in ${entry.voice.guildName}`
-							:	`Joined ${entry.voice.channelName}`
+								<>
+									Joined Voice Channel{' '}
+									<span className="notify-history-context-label-bold">{entry.voice.channelName}</span> in{' '}
+									<span className="notify-history-context-label-bold">{entry.voice.guildName}</span>
+								</>
+							:	<>
+									Joined <span className="notify-history-context-label-bold">{entry.voice.channelName}</span>
+								</>
+
 						:	'Joined a voice channel'
 					: entry.voice?.channelName ?
 						entry.voice.guildName ?
-							`Left ${entry.voice.channelName} in ${entry.voice.guildName}`
-						:	`Left ${entry.voice.channelName}`
+							<>
+								Left <span className="notify-history-context-label-bold">{entry.voice.channelName}</span> in{' '}
+								<span className="notify-history-context-label-bold">{entry.voice.guildName}</span>
+							</>
+						:	<>
+								Left <span className="notify-history-context-label-bold">{entry.voice.channelName}</span>
+							</>
+
 					:	'Left a voice channel'}
 				</span>
 			</div>
@@ -385,41 +416,51 @@ function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
 	].filter(Boolean);
 
 	return (
-		<div className="notify-history-game-meta">
-			{entry.current ?
-				<span className="notify-history-game-status">Started playing</span>
-			:	<span className="notify-history-game-status">Stopped playing</span>}
-			<div className="notify-history-game-copy">
-				<strong className="notify-history-game-name">{entry.activity.name}</strong>
-				{entry.activity.assets?.large_text ?
-					<span>{entry.activity.assets.large_text}</span>
-				:	null}
-				{entry.activity.details ?
-					<span>{entry.activity.details}</span>
-				:	null}
-				{entry.activity.state ?
-					<span>{entry.activity.state}</span>
-				:	null}
-				{entry.activity.timestamps?.start ?
-					<span>Started {formatHistoryTimestamp(entry.activity.timestamps.start)}</span>
-				:	null}
-				<div className="notify-history-game-actions">
-					{smallDetails.length ?
-						<Tooltip text={<div className="notify-history-game-tooltip">{smallDetails}</div>}>
-							{(tooltipProps) => (
-								<span {...tooltipProps} className="notify-history-compact-meta">
-									Small details
-								</span>
-							)}
-						</Tooltip>
-					:	null}
-					<Button onClick={() => void copyToClipboard(JSON.stringify(entry.activity, null, 2))}>Copy raw JSON</Button>
+		<div
+			className={`notify-history-game-meta`}
+		>
+			<div className="notify-history-game-info">
+				<div className="notify-history-game-header">
+					<strong className="notify-history-game-name">{entry.activity.name}</strong>
+					<span
+						className={`notify-history-game-status ${entry.current ? 'notify-history-game-status-playing' : 'notify-history-game-status-stopped'}`}
+					>
+						{entry.current ? 'Playing' : 'Stopped'}
+					</span>
 				</div>
+
+				<div className="notify-history-game-details">
+					{entry.activity.assets?.large_text ?
+						<div className="notify-history-game-detail-row">{entry.activity.assets.large_text}</div>
+					:	null}
+					{entry.activity.details ?
+						<div className="notify-history-game-detail-row">{entry.activity.details}</div>
+					:	null}
+					{entry.activity.state ?
+						<div className="notify-history-game-detail-row">{entry.activity.state}</div>
+					:	null}
+					{entry.activity.timestamps?.start ?
+						<div className="notify-history-game-detail-row">
+							Started {formatHistoryTimestamp(entry.activity.timestamps.start)}
+						</div>
+					:	null}
+				</div>
+
+				{smallDetails.length ?
+					<Tooltip text={<div className="notify-history-game-tooltip">{smallDetails}</div>}>
+						{(tooltipProps) => (
+							<span {...tooltipProps} className="notify-history-game-extra-details">
+								Extra details
+							</span>
+						)}
+					</Tooltip>
+				:	null}
 			</div>
+
 			{largeImage ?
 				<img
 					src={largeImage}
-					alt={entry.activity.assets?.large_text ?? 'Large activity asset'}
+					alt={entry.activity.assets?.large_text ?? 'Game activity asset'}
 					className="notify-history-game-thumb"
 				/>
 			:	null}

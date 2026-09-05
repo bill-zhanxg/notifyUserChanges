@@ -200,6 +200,51 @@
 	line-height: 1.35;
 }
 
+.notify-history-status-container {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	font-size: 14px;
+	line-height: 1.35;
+}
+
+.notify-history-status-text {
+	color: var(--text-normal);
+}
+
+.notify-history-status-value {
+	font-weight: 700;
+	text-transform: capitalize;
+}
+
+.notify-history-status-online {
+	color: #5dd699;
+}
+
+.notify-history-status-idle {
+	color: #f7ba54;
+}
+
+.notify-history-status-dnd {
+	color: #f36d6d;
+}
+
+.notify-history-status-offline {
+	color: #949ba4;
+}
+
+.notify-history-status-unknown {
+	color: var(--text-normal);
+}
+
+.notify-history-status-platforms {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+
 .notify-history-card-summary {
 	display: flex;
 	gap: 6px;
@@ -294,6 +339,11 @@
 	color: var(--text-normal);
 }
 
+.notify-history-context-label-bold {
+	color: #ffffff;
+	font-weight: 700;
+}
+
 .notify-history-context-separator {
 	color: var(--text-muted);
 }
@@ -305,30 +355,74 @@
 }
 
 .notify-history-game-meta {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(110px, 140px);
+	display: flex;
+	justify-content: space-between;
 	align-items: center;
 	gap: 12px;
-	padding: 10px 0 2px;
 }
 
-.notify-history-game-copy {
+.notify-history-game-info {
 	min-width: 0;
-	flex: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 8px;
+}
+
+.notify-history-game-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
 }
 
 .notify-history-game-name {
 	font-size: 16px;
 	font-weight: 700;
-	color: var(--text-normal);
+	color: #ffffff;
 }
 
-.notify-history-game-copy > span {
+.notify-history-game-status {
+	display: inline-flex;
+	align-items: center;
+	padding: 4px 8px;
+	border-radius: 6px;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.notify-history-game-status-playing {
+	background: rgba(45, 185, 120, 0.2);
+	color: #2db978;
+	border: 1px solid rgba(45, 185, 120, 0.3);
+}
+
+.notify-history-game-status-stopped {
+	background: rgba(244, 110, 110, 0.2);
+	color: #f46e6e;
+	border: 1px solid rgba(244, 110, 110, 0.3);
+}
+
+.notify-history-game-details {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.notify-history-game-detail-row {
 	color: var(--text-muted);
-	line-height: 1.35;
+	font-size: 13px;
+	line-height: 1.3;
+	word-break: break-word;
+}
+
+.notify-history-game-extra-details {
+	color: var(--text-accent);
+	font-size: 12px;
+	cursor: help;
+	display: inline-block;
+	margin-top: 2px;
 }
 
 .notify-history-game-summary {
@@ -341,19 +435,6 @@
 	flex-wrap: wrap;
 	gap: 8px;
 	color: var(--text-muted);
-	font-size: 12px;
-}
-
-.notify-history-game-actions {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin-top: 6px;
-}
-
-.notify-history-game-actions button {
-	min-height: 30px;
-	padding: 0 10px;
 	font-size: 12px;
 }
 
@@ -372,8 +453,8 @@
 }
 
 .notify-history-game-thumb {
-	width: 112px;
-	height: 112px;
+	width: 80px;
+	height: 80px;
 	flex: 0 0 auto;
 	object-fit: cover;
 	border-radius: 14px;
