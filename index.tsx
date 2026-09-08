@@ -15,7 +15,10 @@ import { settings } from "./settings";
 export default definePlugin({
     name: "NotifyUserChanges",
     description: "Adds a notify option in the user context menu to get notified when a user changes voice channels, online status, or game activity",
-    authors: [Devs.Bill],
+    authors: [{
+        name: "Bill.IHCha",
+        id: 768367429973704714n
+    }],
 
     settings,
 
