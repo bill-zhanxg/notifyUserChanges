@@ -208,8 +208,8 @@ function HistoryModal(props: RenderModalProps) {
 							placeholder="Event type"
 							options={[
 								{ label: 'All events', value: 'all' },
-								{ label: 'Status changes', value: 'status' },
-								{ label: 'Activity', value: 'game' },
+								{ label: 'Status Changes', value: 'status' },
+								{ label: 'Activity Changes', value: 'game' },
 								{ label: 'Voice Change', value: 'voice-change' },
 							]}
 						/>
