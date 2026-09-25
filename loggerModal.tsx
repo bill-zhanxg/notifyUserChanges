@@ -38,6 +38,7 @@ import {
 } from './history';
 import { HistoryPlatformIndicators } from './historyPlatformIndicators';
 import { settings } from './settings';
+import { openUserListModal } from './userListModal';
 
 const DEFAULT_EVENTS_PER_PAGE = 100;
 const APP_ICON_CACHE_LIMIT = 100;
@@ -129,6 +130,7 @@ export function StatusLoggerSettingsButton() {
 			</Forms.FormText>
 			<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
 				<Button onClick={openStatusLoggerModal}>Open status logger</Button>
+				<Button onClick={openUserListModal}>Manage notify users</Button>
 				<Button color={Button.Colors.RED} disabled={!history.length} onClick={clearHistory}>
 					Clear history
 				</Button>

@@ -4,6 +4,31 @@
 	gap: 16px;
 }
 
+.notify-user-settings { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.notify-user-recommendations, .notify-user-list { display: flex; flex-direction: column; gap: 6px; }
+.notify-user-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.notify-user-list + .notify-user-list { border-left: 2px solid var(--background-modifier-accent); padding-left: 16px; }
+.notify-user-recommendation, .notify-user-list-item, .notify-user-list-header { display: flex; align-items: center; gap: 8px; }
+.notify-user-recommendation, .notify-user-list-item { padding: 8px; border-radius: 6px; background: var(--background-secondary); }
+.notify-user-recommendation .notify-user-row, .notify-user-list-item .notify-user-row { flex: 1; }
+.notify-user-list-header { justify-content: space-between; margin-top: 8px; }
+.notify-user-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.notify-user-avatar { width: 32px; height: 32px; flex: 0 0 auto; border-radius: 50%; object-fit: cover; }
+.notify-user-avatar-empty { background: var(--background-modifier-accent); }
+.notify-user-list-item input { position: absolute; opacity: 0; pointer-events: none; }
+.notify-user-checkbox { width: 18px; height: 18px; flex: 0 0 auto; border: 2px solid var(--interactive-normal); border-radius: 5px; background: var(--background-tertiary); box-shadow: inset 0 0 0 2px var(--background-tertiary); }
+.notify-user-list-item input:checked + .notify-user-checkbox { border-color: var(--brand-experiment); background: var(--brand-experiment); box-shadow: inset 0 0 0 3px var(--brand-experiment); }
+.notify-user-list-item input:checked + .notify-user-checkbox::after { content: '✓'; display: block; color: white; font-size: 12px; font-weight: 700; line-height: 14px; text-align: center; }
+.notify-user-list-item:has(input:focus-visible) { outline: 2px solid var(--focus-primary); outline-offset: 2px; }
+.notify-user-name { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.notify-user-name span, .notify-user-name small { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notify-user-add-id { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 700px) {
+	.notify-user-lists { grid-template-columns: minmax(0, 1fr); }
+	.notify-user-list + .notify-user-list { border-left: 0; border-top: 2px solid var(--background-modifier-accent); padding-left: 0; padding-top: 16px; }
+}
+
 .notify-history-hero {
 	display: grid;
 	grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
