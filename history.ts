@@ -97,6 +97,7 @@ interface HistoryEntryBase {
 	username: string;
 	displayName: string;
 	avatarUrl: string;
+	watchOnly?: boolean;
 }
 
 export interface HistoryEntryStatus extends HistoryEntryBase {
@@ -360,6 +361,7 @@ export function recordStatusEntry(
 	previousStatus: string | null,
 	avatarUrl: string,
 	platformSnapshot: PlatformSnapshot[],
+	watchOnly = false,
 ) {
 	void persistHistoryEntry({
 		kind: 'status',
@@ -370,6 +372,7 @@ export function recordStatusEntry(
 		previous: previousStatus,
 		current: status,
 		platformSnapshot,
+		watchOnly,
 	});
 }
 
@@ -384,6 +387,7 @@ export function recordGameEntry(
 	activity: ActivitySnapshot | null,
 	previousActivity: ActivitySnapshot | null,
 	avatarUrl: string,
+	watchOnly = false,
 ) {
 	const storedActivity = activity ?? previousActivity;
 	if (!storedActivity) return;
@@ -406,5 +410,6 @@ export function recordGameEntry(
 			: activitySummary,
 		current: activity ? activitySummary : null,
 		activity: storedActivity,
+		watchOnly,
 	});
 }

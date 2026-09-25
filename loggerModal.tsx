@@ -97,6 +97,7 @@ function HistoryModal(props: RenderModalProps) {
 	const history = useHistory();
 	const [query, setQuery] = React.useState('');
 	const [kindFilter, setKindFilter] = React.useState<'all' | 'voice-change' | NotificationKind>('all');
+	const [audienceFilter, setAudienceFilter] = React.useState<'all' | 'normal' | 'watchlist'>('normal');
 	const [sort, setSort] = React.useState<'newest' | 'oldest'>('newest');
 	const [page, setPage] = React.useState(0);
 	const eventsPerPage = React.useMemo(() => sanitizeEventsPerPage(settings.store.eventsPerPage), []);
@@ -104,6 +105,8 @@ function HistoryModal(props: RenderModalProps) {
 	const filtered = React.useMemo(() => {
 		const search = query.trim().toLowerCase();
 		const rows = history.filter((entry) => {
+			if (audienceFilter === 'watchlist' && !entry.watchOnly) return false;
+			if (audienceFilter === 'normal' && entry.watchOnly) return false;
 			if (kindFilter === 'voice-change') {
 				if (entry.kind !== 'voice-join' && entry.kind !== 'voice-leave') return false;
 			} else if (kindFilter !== 'all' && entry.kind !== kindFilter) {
@@ -122,7 +125,7 @@ function HistoryModal(props: RenderModalProps) {
 
 		rows.sort((a, b) => (sort === 'newest' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp));
 		return rows;
-	}, [history, query, kindFilter, sort]);
+	}, [history, query, kindFilter, audienceFilter, sort]);
 
 	const totalPages = Math.max(1, Math.ceil(filtered.length / eventsPerPage));
 	const clampedPage = Math.min(page, totalPages - 1);
@@ -134,7 +137,7 @@ function HistoryModal(props: RenderModalProps) {
 
 	React.useEffect(() => {
 		setPage(0);
-	}, [query, kindFilter, sort, eventsPerPage]);
+	}, [query, kindFilter, audienceFilter, sort, eventsPerPage]);
 
 	React.useEffect(() => {
 		if (page !== clampedPage) {
@@ -184,6 +187,18 @@ function HistoryModal(props: RenderModalProps) {
 							value={query}
 							onChange={setQuery}
 							placeholder="Search users, statuses, games, servers, or channels..."
+						/>
+					</div>
+					<div className="notify-history-select">
+						<FilterSelect
+							value={audienceFilter}
+							onChange={(value) => setAudienceFilter(value as typeof audienceFilter)}
+							placeholder="User list"
+							options={[
+								{ label: 'Normal', value: 'normal' },
+								{ label: 'All', value: 'all' },
+								{ label: 'Watchlist', value: 'watchlist' },
+							]}
 						/>
 					</div>
 					<div className="notify-history-select">
@@ -322,6 +337,7 @@ function HistoryCard({ entry }: { entry: HistoryEntry }) {
 }
 
 function StatusChangeDisplay({ entry }: { entry: HistoryEntryStatus }) {
+	const isPlatformChange = entry.previous === entry.current;
 	const getStatusColor = (status: string | null) => {
 		if (!status) return 'notify-history-status-unknown';
 		const lowerStatus = status.toLowerCase();
@@ -335,15 +351,21 @@ function StatusChangeDisplay({ entry }: { entry: HistoryEntryStatus }) {
 	return (
 		<div className="notify-history-status-container">
 			<span className="notify-history-status-text">
-				{entry.displayName} changed their status
-				{entry.previous ?
+				{entry.displayName} changed their {isPlatformChange ? 'platform' : 'status'}
+				{!isPlatformChange ?
 					<>
-						{' '}
-						from{' '}
-						<span className={`notify-history-status-value ${getStatusColor(entry.previous)}`}>{entry.previous}</span>
+						{entry.previous ?
+							<>
+								{' '}
+								from{' '}
+								<span className={`notify-history-status-value ${getStatusColor(entry.previous)}`}>
+									{entry.previous}
+								</span>
+							</>
+						:	null}{' '}
+						to <span className={`notify-history-status-value ${getStatusColor(entry.current)}`}>{entry.current}</span>
 					</>
-				:	null}{' '}
-				to <span className={`notify-history-status-value ${getStatusColor(entry.current)}`}>{entry.current}</span>
+				:	null}
 			</span>
 			<div className="notify-history-status-platforms">
 				<HistoryPlatformIndicators platforms={entry.platformSnapshot} />
@@ -416,9 +438,7 @@ function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
 	].filter(Boolean);
 
 	return (
-		<div
-			className={`notify-history-game-meta`}
-		>
+		<div className={`notify-history-game-meta`}>
 			<div className="notify-history-game-info">
 				<div className="notify-history-game-header">
 					<strong className="notify-history-game-name">{entry.activity.name}</strong>

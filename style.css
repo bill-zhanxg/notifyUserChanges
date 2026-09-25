@@ -38,7 +38,7 @@
 
 .notify-history-filters {
 	display: grid;
-    grid-template-columns: minmax(0, 1.8fr) minmax(190px, 0.8fr) minmax(190px, 0.8fr);
+	grid-template-columns: minmax(0, 1fr) 150px 170px 150px;
 	gap: 12px;
 	align-items: center;
 }

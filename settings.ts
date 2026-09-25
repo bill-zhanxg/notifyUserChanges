@@ -56,4 +56,10 @@ export const settings = definePluginSettings({
 		restartNeeded: false,
 		default: '',
 	},
+	watchlistUserIds: {
+		type: OptionType.STRING,
+		description: 'Watchlist user IDs (comma separated)',
+		restartNeeded: false,
+		default: '',
+	},
 });
