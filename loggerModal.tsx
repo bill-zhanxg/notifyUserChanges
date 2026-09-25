@@ -40,6 +40,51 @@ import { HistoryPlatformIndicators } from './historyPlatformIndicators';
 import { settings } from './settings';
 
 const DEFAULT_EVENTS_PER_PAGE = 100;
+const APP_ICON_CACHE_LIMIT = 100;
+
+type AppIconCacheEntry = {
+	hash?: string | null;
+	request?: Promise<string | null>;
+};
+
+const appIconCache = new Map<string, AppIconCacheEntry>();
+
+function trimAppIconCache() {
+	while (appIconCache.size > APP_ICON_CACHE_LIMIT) {
+		const oldestApplicationId = appIconCache.keys().next().value;
+		if (!oldestApplicationId) return;
+		appIconCache.delete(oldestApplicationId);
+	}
+}
+
+function getAppIconHash(applicationId: string) {
+	const cached = appIconCache.get(applicationId);
+	if (cached) {
+		appIconCache.delete(applicationId);
+		appIconCache.set(applicationId, cached);
+		return cached.request ?? Promise.resolve(cached.hash ?? null);
+	}
+
+	const entry: AppIconCacheEntry = {};
+	entry.request = fetch(`https://discord.com/api/v10/applications/${applicationId}/rpc`)
+		.then(async (response) => {
+			if (!response.ok) return null;
+			const body = (await response.json()) as { icon?: unknown };
+			return typeof body.icon === 'string' && body.icon ? body.icon : null;
+		})
+		.catch(() => null);
+
+	appIconCache.set(applicationId, entry);
+	trimAppIconCache();
+
+	void entry.request.then((hash) => {
+		if (appIconCache.get(applicationId) !== entry) return;
+		entry.hash = hash;
+		delete entry.request;
+	});
+
+	return entry.request;
+}
 
 function sanitizeEventsPerPage(value: number) {
 	const parsed = Number.isFinite(value) ? Math.floor(value) : DEFAULT_EVENTS_PER_PAGE;
@@ -428,7 +473,6 @@ function VoiceChangeDisplay({ entry }: { entry: HistoryEntryVoice }) {
 	);
 }
 function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
-	const largeImage = resolveActivityImage(entry.activity, entry.activity.assets?.large_image);
 	const smallImage = resolveActivityImage(entry.activity, entry.activity.assets?.small_image);
 	const activityVerb =
 		entry.activity.type === 0 ? 'Playing'
@@ -440,7 +484,13 @@ function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
 	const smallDetails = [
 		entry.activity.assets?.small_text ? `Small text: ${entry.activity.assets.small_text}` : null,
 		smallImage ?
-			<img key="small-image" src={smallImage} alt="Small activity asset" className="notify-history-game-small-image" />
+						<img
+							key="small-image"
+							src={smallImage}
+							alt="Small activity asset"
+							loading="lazy"
+							className="notify-history-game-small-image"
+						/>
 		:	null,
 	].filter(Boolean);
 
@@ -484,15 +534,55 @@ function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
 				:	null}
 			</div>
 
-			{largeImage ?
-				<img
-					src={largeImage}
-					alt={entry.activity.assets?.large_text ?? 'Activity asset'}
-					className="notify-history-game-thumb"
-				/>
-			:	null}
+			<ActivityImage activity={entry.activity} asset={entry.activity.assets?.large_image} alt={entry.activity.assets?.large_text} />
 		</div>
 	);
+}
+
+function ActivityImage({
+	activity,
+	asset,
+	alt,
+}: {
+	activity: HistoryEntryGame['activity'];
+	asset?: string;
+	alt?: string;
+}) {
+	const directImage = resolveActivityImage(activity, asset);
+	const [appIconUrl, setAppIconUrl] = React.useState<string | null>(null);
+	const [isLoading, setIsLoading] = React.useState(false);
+	const applicationId = activity.application_id;
+
+	React.useEffect(() => {
+		if (directImage || !applicationId) return;
+
+		let cancelled = false;
+		setIsLoading(true);
+		void getAppIconHash(applicationId).then((hash) => {
+			if (cancelled) return;
+			setAppIconUrl(hash ? `https://cdn.discordapp.com/app-icons/${applicationId}/${hash}.png` : null);
+			setIsLoading(false);
+		});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [applicationId, directImage]);
+
+	const image = directImage ?? appIconUrl;
+	if (image) {
+		return <img src={image} alt={alt ?? 'Activity asset'} loading="lazy" className="notify-history-game-thumb" />;
+	}
+
+	if (isLoading) {
+		return (
+			<div className="notify-history-game-thumb notify-history-game-thumb-loading" role="status" aria-label="Loading activity image">
+				<span />
+			</div>
+		);
+	}
+
+	return null;
 }
 
 function resolveActivityImage(activity: NonNullable<HistoryEntryGame['activity']>, asset: string | undefined) {

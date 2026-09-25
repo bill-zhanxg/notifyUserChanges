@@ -401,6 +401,27 @@
 	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
 }
 
+.notify-history-game-thumb-loading {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.notify-history-game-thumb-loading span {
+	width: 20px;
+	height: 20px;
+	border: 2px solid var(--text-muted);
+	border-top-color: var(--text-normal);
+	border-radius: 50%;
+	animation: notify-history-image-spin 0.8s linear infinite;
+}
+
+@keyframes notify-history-image-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
 .notify-history-card-status {
 	--notify-accent: #3b7ee2;
 }
