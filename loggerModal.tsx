@@ -209,7 +209,7 @@ function HistoryModal(props: RenderModalProps) {
 							options={[
 								{ label: 'All events', value: 'all' },
 								{ label: 'Status changes', value: 'status' },
-								{ label: 'Game activity', value: 'game' },
+								{ label: 'Activity', value: 'game' },
 								{ label: 'Voice Change', value: 'voice-change' },
 							]}
 						/>
@@ -430,6 +430,13 @@ function VoiceChangeDisplay({ entry }: { entry: HistoryEntryVoice }) {
 function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
 	const largeImage = resolveActivityImage(entry.activity, entry.activity.assets?.large_image);
 	const smallImage = resolveActivityImage(entry.activity, entry.activity.assets?.small_image);
+	const activityVerb =
+		entry.activity.type === 0 ? 'Playing'
+		: entry.activity.type === 1 ? 'Streaming'
+		: entry.activity.type === 2 ? 'Listening'
+		: entry.activity.type === 3 ? 'Watching'
+		: entry.activity.type === 5 ? 'Competing'
+		: 'Active';
 	const smallDetails = [
 		entry.activity.assets?.small_text ? `Small text: ${entry.activity.assets.small_text}` : null,
 		smallImage ?
@@ -445,7 +452,7 @@ function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
 					<span
 						className={`notify-history-game-status ${entry.current ? 'notify-history-game-status-playing' : 'notify-history-game-status-stopped'}`}
 					>
-						{entry.current ? 'Playing' : 'Stopped'}
+						{entry.current ? activityVerb : 'Stopped'}
 					</span>
 				</div>
 
@@ -480,7 +487,7 @@ function ActivityChangeDisplay({ entry }: { entry: HistoryEntryGame }) {
 			{largeImage ?
 				<img
 					src={largeImage}
-					alt={entry.activity.assets?.large_text ?? 'Game activity asset'}
+					alt={entry.activity.assets?.large_text ?? 'Activity asset'}
 					className="notify-history-game-thumb"
 				/>
 			:	null}

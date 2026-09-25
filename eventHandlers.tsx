@@ -192,11 +192,11 @@ const lastPlatformSnapshots = new Map<string, string>();
 const lastGames = new Map<string, string | null>();
 const lastActivities = new Map<string, PresenceUpdate['activities'][number] | null>();
 
-function getGameActivityLabel(activities: PresenceUpdate['activities']) {
-	const gameActivity = activities.find((activity) => activity.type === 0);
-	if (!gameActivity) return null;
+function getActivityLabel(activities: PresenceUpdate['activities']) {
+	const activity = activities.find((activity) => activity.type !== 4);
+	if (!activity) return null;
 
-	return gameActivity.state ?? gameActivity.details ?? gameActivity.name ?? null;
+	return activity.state ?? activity.details ?? activity.name ?? null;
 }
 
 function getPlatformSnapshot(clientStatus: NonNullable<PresenceUpdate['clientStatus']>) {
@@ -286,11 +286,11 @@ export const flux = {
 			lastStatuses.set(userId, status);
 			lastPlatformSnapshots.set(userId, platformSnapshotKey);
 
-			const game = getGameActivityLabel(activities);
-			const previousGame = lastGames.get(userId) ?? null;
-			const currentActivity = activities.find((activity) => activity.type === 0) ?? null;
+			const activity = getActivityLabel(activities);
+			const previousActivityLabel = lastGames.get(userId) ?? null;
+			const currentActivity = activities.find((activity) => activity.type !== 4) ?? null;
 			const previousActivity = lastActivities.get(userId) ?? null;
-			if ((settings.store.notifyGameActivityChange || isWatchOnly) && lastGames.has(userId) && previousGame !== game) {
+			if ((settings.store.notifyGameActivityChange || isWatchOnly) && lastGames.has(userId) && previousActivityLabel !== activity) {
 				const user = UserStore.getUser(userId);
 				const name = user.globalName || user.username || username || user.id;
 
@@ -306,22 +306,22 @@ export const flux = {
 
 				if (!isWatchOnly && settings.store.showGameActivityChangeNotification) {
 					showNotification({
-						title: `${name} changed game activity`,
+						title: `${name} changed activity`,
 						body:
-							game ? `They are now playing ${game}`
-							: previousGame ? `They stopped playing ${previousGame}`
-							: 'They stopped playing a game',
+							activity ? `They are now ${activity}`
+							: previousActivityLabel ? `They stopped ${previousActivityLabel}`
+							: 'They stopped their activity',
 						noPersist: !settings.store.persistNotifications,
 						richBody: getRichBody(
 							user,
-							game ? `${name} is now playing ${game}` : `${name} stopped playing ${previousGame ?? 'a game'}`,
+							activity ? `${name} is now ${activity}` : `${name} stopped ${previousActivityLabel ?? 'their activity'}`,
 						),
 						icon: user.getAvatarURL(void 0, 80, true),
-						color: game ? '#5865f2' : '#747f8d',
+						color: activity ? '#5865f2' : '#747f8d',
 					});
 				}
 			}
-			lastGames.set(userId, game);
+			lastGames.set(userId, activity);
 			lastActivities.set(userId, currentActivity);
 		}
 	},

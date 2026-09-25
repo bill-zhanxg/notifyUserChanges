@@ -346,11 +346,11 @@ export function getActivitySummary(activity: ActivitySnapshot) {
 	if (summary) return summary;
 
 	if (activity.type === 0) return `Playing ${activity.name}`;
+	if (activity.type === 1) return `Streaming ${activity.name}`;
+	if (activity.type === 2) return `Listening to ${activity.name}`;
+	if (activity.type === 3) return `Watching ${activity.name}`;
+	if (activity.type === 5) return `Competing in ${activity.name}`;
 	return activity.name;
-}
-
-export function getActivityTitle(activity: ActivitySnapshot) {
-	return activity.name || getActivitySummary(activity) || 'Game activity';
 }
 
 export function recordStatusEntry(
@@ -392,7 +392,6 @@ export function recordGameEntry(
 	const storedActivity = activity ?? previousActivity;
 	if (!storedActivity) return;
 
-	const activityTitle = getActivityTitle(storedActivity);
 	const activitySummary =
 		activity ? getActivitySummary(activity)
 		: previousActivity ? getActivitySummary(previousActivity)
