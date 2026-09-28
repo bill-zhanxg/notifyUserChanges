@@ -199,6 +199,23 @@ function getActivityLabel(activities: PresenceUpdate['activities']) {
 	return activity.state ?? activity.details ?? activity.name ?? null;
 }
 
+function getActivitySettings(type: number | null) {
+	switch (type) {
+		case 0:
+			return { log: settings.store.logPlaying, notify: settings.store.notifyPlaying };
+		case 1:
+			return { log: settings.store.logStreaming, notify: settings.store.notifyStreaming };
+		case 2:
+			return { log: settings.store.logListening, notify: settings.store.notifyListening };
+		case 3:
+			return { log: settings.store.logWatching, notify: settings.store.notifyWatching };
+		case 5:
+			return { log: settings.store.logCompeting, notify: settings.store.notifyCompeting };
+		default:
+			return { log: true, notify: true };
+	}
+}
+
 function getPlatformSnapshot(clientStatus: NonNullable<PresenceUpdate['clientStatus']>) {
 	return Object.entries(clientStatus)
 		.map(([platform, platformStatus]) => ({ platform, status: platformStatus }))
@@ -290,7 +307,11 @@ export const flux = {
 			const previousActivityLabel = lastGames.get(userId) ?? null;
 			const currentActivity = activities.find((activity) => activity.type !== 4) ?? null;
 			const previousActivity = lastActivities.get(userId) ?? null;
-			if ((settings.store.notifyGameActivityChange || isWatchOnly) && lastGames.has(userId) && previousActivityLabel !== activity) {
+			const currentActivitySettings = getActivitySettings(currentActivity?.type ?? null);
+			const previousActivitySettings = getActivitySettings(previousActivity?.type ?? null);
+			const shouldLogActivity = currentActivitySettings.log || previousActivitySettings.log;
+			const shouldNotifyActivity = currentActivitySettings.notify || previousActivitySettings.notify;
+			if ((shouldLogActivity || isWatchOnly) && lastGames.has(userId) && previousActivityLabel !== activity) {
 				const user = UserStore.getUser(userId);
 				const name = user.globalName || user.username || username || user.id;
 
@@ -304,7 +325,7 @@ export const flux = {
 					isWatchOnly,
 				);
 
-				if (!isWatchOnly && settings.store.showGameActivityChangeNotification) {
+				if (!isWatchOnly && shouldNotifyActivity) {
 					showNotification({
 						title: `${name} changed activity`,
 						body:
